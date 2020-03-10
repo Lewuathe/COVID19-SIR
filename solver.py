@@ -5,7 +5,7 @@ from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 from datetime import timedelta, datetime
 
-S_0 = 120000000
+S_0 = 120000
 I_0 = 2
 R_0 = 0
 
@@ -33,29 +33,29 @@ def extend_index(index, new_size):
         values = np.append(values, datetime.strftime(current, '%m/%d/%y'))
     return values
 
-
 def plot(beta, gamma, data, country):
-  predict_range = 100
-  new_index = extend_index(data.index, predict_range)
-  size = len(new_index)
-  def SIR(t, y):
-      S = y[0]
-      I = y[1]
-      R = y[2]
-      return [-beta*S*I, beta*S*I-gamma*I, gamma*I]
-  solution = solve_ivp(SIR, [0, size], [S_0,I_0,R_0], t_eval=np.arange(0, size, 1))
+    predict_range = 100
+    new_index = extend_index(data.index, predict_range)
+    size = len(new_index)
+    def SIR(t, y):
+        S = y[0]
+        I = y[1]
+        R = y[2]
+        return [-beta*S*I, beta*S*I-gamma*I, gamma*I]
+    solution = solve_ivp(SIR, [0, size], [S_0,I_0,R_0], t_eval=np.arange(0, size, 1))
 
-  extended_actual = np.concatenate((data.values, [None] * (size - len(data.values))))
-  df = pd.DataFrame({'Actual': extended_actual, 'S': solution.y[0], 'I': solution.y[1], 'R': solution.y[2]}, index=new_index)
-  fig, ax = plt.subplots(figsize=(15, 10))
-  ax.set_title(country)
-  df.plot(ax=ax)
-  plt.show()
+    extended_actual = np.concatenate((data.values, [None] * (size - len(data.values))))
+    df = pd.DataFrame({'Actual': extended_actual, 'S': solution.y[0], 'I': solution.y[1], 'R': solution.y[2]}, index=new_index)
+    fig, ax = plt.subplots(figsize=(15, 10))
+    ax.set_title(country)
+    df.plot(ax=ax)
+    fig.savefig(f"{country}.png")
 
 def predict(country):
-  data = load_confirmed(country)
-  optimal = minimize(loss, [0.002, 0.02], args=(data), method='L-BFGS-B', bounds=[(0.001, 0.01), (0.01, 0.1)])
-  beta, gamma = optimal.x
-  plot(beta, gamma, data, country)
+    data = load_confirmed(country)
+    optimal = minimize(loss, [0.001, 0.01], args=(data), method='BFGS')
+    print(optimal)
+    beta, gamma = optimal.x
+    plot(beta, gamma, data, country)
 
 predict('Japan')
