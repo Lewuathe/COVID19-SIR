@@ -5,14 +5,20 @@ from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 from datetime import timedelta, datetime
 
-S_0 = 120000
+S_0 = 15000
 I_0 = 2
 R_0 = 0
+
+START_DATE = {
+  'Japan': '1/22/20',
+  'Italy': '1/31/20',
+  'South Korea': '1/22/20'
+}
 
 def load_confirmed(country):
   df = pd.read_csv('data/time_series_19-covid-Confirmed.csv')
   country_df = df[df['Country/Region'] == country]
-  return country_df.iloc[0].loc['1/22/20':]
+  return country_df.iloc[0].loc[START_DATE[country]:]
 
 def loss(point, data):
     size = len(data)
@@ -22,8 +28,10 @@ def loss(point, data):
         I = y[1]
         R = y[2]
         return [-beta*S*I, beta*S*I-gamma*I, gamma*I]
-    solution = solve_ivp(SIR, [0, size],[S_0,I_0,R_0], t_eval=np.arange(0, size, 1))
-    return sum((solution.y[1] - data)**2)
+    solution = solve_ivp(SIR, [0, size], [S_0,I_0,R_0], t_eval=np.arange(0, size, 1), vectorized=True)
+    l = np.mean((solution.y[1] - data)**2)
+    print(f"point={point}, loss={l}")
+    return l
 
 def extend_index(index, new_size):
     values = index.values
@@ -34,7 +42,7 @@ def extend_index(index, new_size):
     return values
 
 def plot(beta, gamma, data, country):
-    predict_range = 100
+    predict_range = 150
     new_index = extend_index(data.index, predict_range)
     size = len(new_index)
     def SIR(t, y):
@@ -53,9 +61,13 @@ def plot(beta, gamma, data, country):
 
 def predict(country):
     data = load_confirmed(country)
-    optimal = minimize(loss, [0.001, 0.01], args=(data), method='BFGS')
+    optimal = minimize(loss, [0.001, 0.001], args=(data), method='L-BFGS-B', bounds=[(0.0, 0.1), (0.0, 0.1)])
     print(optimal)
     beta, gamma = optimal.x
+    print(f"R_0={beta*100/gamma}%")
     plot(beta, gamma, data, country)
 
-predict('Japan')
+
+# predict('Japan')
+predict('South Korea')
+# predict('Italy')
