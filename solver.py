@@ -12,7 +12,8 @@ R_0 = 0
 START_DATE = {
   'Japan': '1/22/20',
   'Italy': '1/31/20',
-  'South Korea': '1/22/20'
+  'South Korea': '1/22/20',
+  'Iran': '2/19/20'
 }
 
 def load_confirmed(country):
@@ -69,5 +70,6 @@ def predict(country):
 
 
 # predict('Japan')
-predict('South Korea')
+# predict('South Korea')
 # predict('Italy')
+predict('Iran')
