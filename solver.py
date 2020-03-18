@@ -26,6 +26,11 @@ class Learner(object):
       country_df = df[df['Country/Region'] == country]
       return country_df.iloc[0].loc[START_DATE[country]:]
 
+    def load_recovered(self, country):
+      df = pd.read_csv('data/time_series_19-covid-Recovered.csv')
+      country_df = df[df['Country/Region'] == country]
+      return country_df.iloc[0].loc[START_DATE[country]:]
+
     def extend_index(self, index, new_size):
         values = index.values
         current = datetime.strptime(index[-1], '%m/%d/%y')
@@ -34,7 +39,7 @@ class Learner(object):
             values = np.append(values, datetime.strftime(current, '%m/%d/%y'))
         return values
 
-    def predict(self, beta, gamma, data, country):
+    def predict(self, beta, gamma, data, recovered, country):
         predict_range = 150
         new_index = self.extend_index(data.index, predict_range)
         size = len(new_index)
@@ -44,22 +49,24 @@ class Learner(object):
             R = y[2]
             return [-beta*S*I, beta*S*I-gamma*I, gamma*I]
         extended_actual = np.concatenate((data.values, [None] * (size - len(data.values))))
-        return new_index, extended_actual, solve_ivp(SIR, [0, size], [S_0,I_0,R_0], t_eval=np.arange(0, size, 1))
+        extended_recovered = np.concatenate((recovered.values, [None] * (size - len(recovered.values))))
+        return new_index, extended_actual, extended_recovered, solve_ivp(SIR, [0, size], [S_0,I_0,R_0], t_eval=np.arange(0, size, 1))
 
     def train(self):
         data = self.load_confirmed(self.country)
-        optimal = minimize(loss, [0.001, 0.001], args=(data), method='L-BFGS-B', bounds=[(0.0, 0.1), (0.0, 0.1)])
+        recovered = self.load_recovered(self.country)
+        optimal = minimize(loss, [0.001, 0.001], args=(data, recovered), method='L-BFGS-B', bounds=[(0.00000001, 0.4), (0.00000001, 0.4)])
         print(optimal)
         beta, gamma = optimal.x
-        print(f"R_0={beta*100/gamma}%")
-        new_index, extended_actual, prediction = self.predict(beta, gamma, data, self.country)
-        df = pd.DataFrame({'Actual': extended_actual, 'S': prediction.y[0], 'I': prediction.y[1], 'R': prediction.y[2]}, index=new_index)
+        new_index, extended_actual, extended_recovered, prediction = self.predict(beta, gamma, data, recovered, self.country)
+        df = pd.DataFrame({'Confirmed': extended_actual, 'Recovered': extended_recovered, 'S': prediction.y[0], 'I': prediction.y[1], 'R': prediction.y[2]}, index=new_index)
         fig, ax = plt.subplots(figsize=(15, 10))
         ax.set_title(self.country)
         df.plot(ax=ax)
+        print(f"country={self.country}, beta={beta:.8f}, gamma={gamma:.8f}, r_0:{(beta/gamma):.8f}")
         fig.savefig(f"{self.country}.png")
 
-def loss(point, data):
+def loss(point, data, recovered):
     size = len(data)
     beta, gamma = point
     def SIR(t, y):
@@ -68,18 +75,16 @@ def loss(point, data):
         R = y[2]
         return [-beta*S*I, beta*S*I-gamma*I, gamma*I]
     solution = solve_ivp(SIR, [0, size], [S_0,I_0,R_0], t_eval=np.arange(0, size, 1), vectorized=True)
-    l = np.mean((solution.y[1] - data)**2)
-    print(f"point={point}, loss={l}")
-    return l
+    l1 = np.sqrt(np.mean((solution.y[1] - data)**2))
+    l2 = np.sqrt(np.mean((solution.y[2] - recovered)**2))
+    alpha = 0.1
+    return alpha * l1 + (1 - alpha) * l2
 
-# learner = Learner('Japan', loss)
-# learner.train()
-
+learner = Learner('Japan', loss)
+learner.train()
+learner = Learner('Republic of Korea', loss)
+learner.train()
 learner = Learner('Italy', loss)
 learner.train()
-
-# learner = Learner('Republic of Korea', loss)
-# learner.train()
-
-# learner = Learner('Iran (Islamic Republic of)', loss)
-# learner.train()
+learner = Learner('Iran (Islamic Republic of)', loss)
+learner.train()
