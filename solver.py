@@ -162,11 +162,11 @@ def main():
 
     for country in countries:
         learner = Learner(country, loss, startdate, predict_range)
-        #try:
-        learner.train()
-        #except BaseException:
-        #    print('WARNING: Problem processing above country. ' +
-        #        'Be sure it exists in the data exactly as you entry it.')
+        try:
+            learner.train()
+        except BaseException:
+            print('WARNING: Problem processing above country. ' +
+                'Be sure it exists in the data exactly as you entry it.')
            
 
 if __name__ == '__main__':
