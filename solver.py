@@ -1,20 +1,72 @@
+#!/usr/bin/python
 import numpy as np
 import pandas as pd
 from scipy.integrate import solve_ivp
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 from datetime import timedelta, datetime
+import argparse
+import sys
 
+#SIR
 S_0 = 15000
 I_0 = 2
 R_0 = 0
 
 START_DATE = {
-  'Japan': '1/22/20',
-  'Italy': '1/31/20',
-  'Republic of Korea': '1/22/20',
-  'Iran (Islamic Republic of)': '2/19/20'
+  'Spain': '1/22/20',
+  'France': '1/22/20',
+  'Italy': '1/22/20',
+  'Finland': '1/22/20',
+  'United Kingdom': '1/22/20',
+  'US': '1/22/20'
 }
+
+def parse_arguments():
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument(
+        '--countries',
+        action='store',
+        dest='countries',
+        help='Countries on CSV format. ' +
+        'It must exact match the data names or you will get out of bonds error.',
+        metavar='COUNTRY_CSV',
+        type=str,
+        default="")
+    
+    parser.add_argument(
+        '--start-date',
+        required=False,
+        action='store',
+        dest='start_date',
+        help='NOT IN USE YET. Start date on MM/DD/YY format ... I know ...',
+        metavar='START_DATE',
+        type=str,
+        default="1/22/20")
+
+    parser.add_argument(
+        '--prediction-days',
+        required=False,
+        dest='predict_range',
+        help='NOT IN USE YET. Days to predict with the model',
+        metavar='PREDICT_RANGE',
+        type=int,
+        default=90)
+
+    args = parser.parse_args()
+
+    country_list = []
+    if args.countries != "":
+        try:
+            countries_raw = args.countries
+            country_list = countries_raw.split(",")
+        except Exception:
+            sys.exit("QUIT: countries parameter is not on CSV format")
+    else:
+        sys.exit("QUIT: You must pass a country list on CSV format.")
+
+    return (country_list, args.start_date, args.predict_range)
 
 class Learner(object):
     def __init__(self, country, loss):
@@ -22,12 +74,12 @@ class Learner(object):
         self.loss = loss
 
     def load_confirmed(self, country):
-      df = pd.read_csv('data/time_series_19-covid-Confirmed.csv')
+      df = pd.read_csv('data/time_series_2019-ncov-Confirmed.csv')
       country_df = df[df['Country/Region'] == country]
       return country_df.iloc[0].loc[START_DATE[country]:]
 
     def load_recovered(self, country):
-      df = pd.read_csv('data/time_series_19-covid-Recovered.csv')
+      df = pd.read_csv('data/time_series_2019-ncov-Recovered.csv')
       country_df = df[df['Country/Region'] == country]
       return country_df.iloc[0].loc[START_DATE[country]:]
 
@@ -40,7 +92,7 @@ class Learner(object):
         return values
 
     def predict(self, beta, gamma, data, recovered, country):
-        predict_range = 150
+        predict_range = 210
         new_index = self.extend_index(data.index, predict_range)
         size = len(new_index)
         def SIR(t, y):
@@ -59,7 +111,7 @@ class Learner(object):
         print(optimal)
         beta, gamma = optimal.x
         new_index, extended_actual, extended_recovered, prediction = self.predict(beta, gamma, data, recovered, self.country)
-        df = pd.DataFrame({'Confirmed': extended_actual, 'Recovered': extended_recovered, 'S': prediction.y[0], 'I': prediction.y[1], 'R': prediction.y[2]}, index=new_index)
+        df = pd.DataFrame({'Infected real': extended_actual, 'Recovered real': extended_recovered, 'Susceptible': prediction.y[0], 'Infected modeled': prediction.y[1], 'Recovered modeled': prediction.y[2]}, index=new_index)
         fig, ax = plt.subplots(figsize=(15, 10))
         ax.set_title(self.country)
         df.plot(ax=ax)
@@ -80,11 +132,19 @@ def loss(point, data, recovered):
     alpha = 0.1
     return alpha * l1 + (1 - alpha) * l2
 
-learner = Learner('Japan', loss)
-learner.train()
-learner = Learner('Republic of Korea', loss)
-learner.train()
-learner = Learner('Italy', loss)
-learner.train()
-learner = Learner('Iran (Islamic Republic of)', loss)
-learner.train()
+
+
+def main():
+
+    countries, startdate, predict_range = parse_arguments()
+
+    for country in countries:
+        learner = Learner(country, loss)
+        try:
+            learner.train()
+        except BaseException:
+            print('WARNING: Problem processing above country. ' +
+                'Be sure it exists in the data exactly as you entry it.')
+
+if __name__ == '__main__':
+    main()
