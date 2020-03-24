@@ -13,7 +13,8 @@ START_DATE = {
   'Japan': '1/22/20',
   'Italy': '1/31/20',
   'Republic of Korea': '1/22/20',
-  'Iran (Islamic Republic of)': '2/19/20'
+  'Iran (Islamic Republic of)': '2/19/20',
+  'US': '3/3/20'
 }
 
 class Learner(object):
@@ -87,4 +88,6 @@ learner.train()
 learner = Learner('Italy', loss)
 learner.train()
 learner = Learner('Iran (Islamic Republic of)', loss)
+learner.train()
+learner = Learner('US', loss)
 learner.train()
