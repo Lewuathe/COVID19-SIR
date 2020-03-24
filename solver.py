@@ -9,9 +9,9 @@ import argparse
 import sys
 
 #SIR
-S_0 = 15000
+S_0 = 100000
 I_0 = 2
-R_0 = 0
+R_0 = 10
 
 
 def parse_arguments():
@@ -42,19 +42,19 @@ def parse_arguments():
         '--prediction-days',
         required=False,
         dest='predict_range',
-        help='Days to predict with the model. Defaults to 120',
+        help='Days to predict with the model. Defaults to 180',
         metavar='PREDICT_RANGE',
         type=int,
-        default=120)
+        default=180)
 
     parser.add_argument(
         '--S_0',
         required=False,
         dest='S_0',
-        help='NOT USED YET. Susceptible. Defaults to 15000',
+        help='NOT USED YET. Susceptible. Defaults to 100000',
         metavar='S_0',
         type=int,
-        default=15000)
+        default=100000)
 
     parser.add_argument(
         '--I_0',
@@ -72,7 +72,7 @@ def parse_arguments():
         help='NOT USED YET. Recovered. Defaults to 0',
         metavar='R_0',
         type=int,
-        default=0)    
+        default=10)    
 
     args = parser.parse_args()
 
@@ -126,8 +126,8 @@ class Learner(object):
         return new_index, extended_actual, extended_recovered, solve_ivp(SIR, [0, size], [S_0,I_0,R_0], t_eval=np.arange(0, size, 1))
 
     def train(self):
-        data = self.load_confirmed(self.country)
         recovered = self.load_recovered(self.country)
+        data = self.load_confirmed(self.country) - recovered
         optimal = minimize(loss, [0.001, 0.001], args=(data, recovered), method='L-BFGS-B', bounds=[(0.00000001, 0.4), (0.00000001, 0.4)])
         print(optimal)
         beta, gamma = optimal.x

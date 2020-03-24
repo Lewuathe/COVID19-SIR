@@ -39,3 +39,5 @@ optional arguments:
   --I_0 I_0             NOT USED YET. Infected. Defaults to 2
   --R_0 R_0             NOT USED YET. Recovered. Defaults to 0
 ```
+
+S I and R variables are key. Some work needed there to not have S that is less that number of peak infected as it makes no sense. for the moment you will have to play with those manually.
