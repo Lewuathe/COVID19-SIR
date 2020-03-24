@@ -13,14 +13,6 @@ S_0 = 15000
 I_0 = 2
 R_0 = 0
 
-START_DATE = {
-  'Spain': '1/22/20',
-  'France': '1/22/20',
-  'Italy': '1/22/20',
-  'Finland': '1/22/20',
-  'United Kingdom': '1/22/20',
-  'US': '1/22/20'
-}
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -40,7 +32,8 @@ def parse_arguments():
         required=False,
         action='store',
         dest='start_date',
-        help='NOT IN USE YET. Start date on MM/DD/YY format ... I know ...',
+        help='Start date on MM/DD/YY format ... I know ...' +
+        'It defaults to first data available 1/22/20',
         metavar='START_DATE',
         type=str,
         default="1/22/20")
@@ -49,10 +42,37 @@ def parse_arguments():
         '--prediction-days',
         required=False,
         dest='predict_range',
-        help='NOT IN USE YET. Days to predict with the model',
+        help='Days to predict with the model. Defaults to 120',
         metavar='PREDICT_RANGE',
         type=int,
-        default=90)
+        default=120)
+
+    parser.add_argument(
+        '--S_0',
+        required=False,
+        dest='S_0',
+        help='NOT USED YET. Susceptible. Defaults to 15000',
+        metavar='S_0',
+        type=int,
+        default=15000)
+
+    parser.add_argument(
+        '--I_0',
+        required=False,
+        dest='I_0',
+        help='NOT USED YET. Infected. Defaults to 2',
+        metavar='I_0',
+        type=int,
+        default=2)
+
+    parser.add_argument(
+        '--R_0',
+        required=False,
+        dest='R_0',
+        help='NOT USED YET. Recovered. Defaults to 0',
+        metavar='R_0',
+        type=int,
+        default=0)    
 
     args = parser.parse_args()
 
@@ -69,19 +89,21 @@ def parse_arguments():
     return (country_list, args.start_date, args.predict_range)
 
 class Learner(object):
-    def __init__(self, country, loss):
+    def __init__(self, country, loss, start_date, predict_range):
         self.country = country
         self.loss = loss
+        self.start_date = start_date
+        self.predict_range = predict_range
 
     def load_confirmed(self, country):
       df = pd.read_csv('data/time_series_2019-ncov-Confirmed.csv')
       country_df = df[df['Country/Region'] == country]
-      return country_df.iloc[0].loc[START_DATE[country]:]
+      return country_df.iloc[0].loc[self.start_date:]
 
     def load_recovered(self, country):
       df = pd.read_csv('data/time_series_2019-ncov-Recovered.csv')
       country_df = df[df['Country/Region'] == country]
-      return country_df.iloc[0].loc[START_DATE[country]:]
+      return country_df.iloc[0].loc[self.start_date:]
 
     def extend_index(self, index, new_size):
         values = index.values
@@ -92,8 +114,7 @@ class Learner(object):
         return values
 
     def predict(self, beta, gamma, data, recovered, country):
-        predict_range = 210
-        new_index = self.extend_index(data.index, predict_range)
+        new_index = self.extend_index(data.index, self.predict_range)
         size = len(new_index)
         def SIR(t, y):
             S = y[0]
@@ -118,6 +139,7 @@ class Learner(object):
         print(f"country={self.country}, beta={beta:.8f}, gamma={gamma:.8f}, r_0:{(beta/gamma):.8f}")
         fig.savefig(f"{self.country}.png")
 
+
 def loss(point, data, recovered):
     size = len(data)
     beta, gamma = point
@@ -139,12 +161,13 @@ def main():
     countries, startdate, predict_range = parse_arguments()
 
     for country in countries:
-        learner = Learner(country, loss)
-        try:
-            learner.train()
-        except BaseException:
-            print('WARNING: Problem processing above country. ' +
-                'Be sure it exists in the data exactly as you entry it.')
+        learner = Learner(country, loss, startdate, predict_range)
+        #try:
+        learner.train()
+        #except BaseException:
+        #    print('WARNING: Problem processing above country. ' +
+        #        'Be sure it exists in the data exactly as you entry it.')
+           
 
 if __name__ == '__main__':
     main()
