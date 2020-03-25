@@ -1,4 +1,3 @@
-#!/usr/bin/python
 import numpy as np
 import pandas as pd
 from scipy.integrate import solve_ivp
@@ -8,11 +7,9 @@ from datetime import timedelta, datetime
 import argparse
 import sys
 
-#SIR
-S_0 = 100000
+S_0 = 15000
 I_0 = 2
-R_0 = 10
-
+R_0 = 0
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -42,10 +39,10 @@ def parse_arguments():
         '--prediction-days',
         required=False,
         dest='predict_range',
-        help='Days to predict with the model. Defaults to 180',
+        help='Days to predict with the model. Defaults to 150',
         metavar='PREDICT_RANGE',
         type=int,
-        default=180)
+        default=150)
 
     parser.add_argument(
         '--S_0',
@@ -72,7 +69,7 @@ def parse_arguments():
         help='NOT USED YET. Recovered. Defaults to 0',
         metavar='R_0',
         type=int,
-        default=10)    
+        default=10)
 
     args = parser.parse_args()
 
@@ -88,6 +85,7 @@ def parse_arguments():
 
     return (country_list, args.start_date, args.predict_range)
 
+
 class Learner(object):
     def __init__(self, country, loss, start_date, predict_range):
         self.country = country
@@ -96,12 +94,12 @@ class Learner(object):
         self.predict_range = predict_range
 
     def load_confirmed(self, country):
-      df = pd.read_csv('data/time_series_2019-ncov-Confirmed.csv')
+      df = pd.read_csv('data/time_series_19-covid-Confirmed.csv')
       country_df = df[df['Country/Region'] == country]
       return country_df.iloc[0].loc[self.start_date:]
 
     def load_recovered(self, country):
-      df = pd.read_csv('data/time_series_2019-ncov-Recovered.csv')
+      df = pd.read_csv('data/time_series_19-covid-Recovered.csv')
       country_df = df[df['Country/Region'] == country]
       return country_df.iloc[0].loc[self.start_date:]
 
@@ -127,18 +125,17 @@ class Learner(object):
 
     def train(self):
         recovered = self.load_recovered(self.country)
-        data = self.load_confirmed(self.country) - recovered
+        data = self.load_confirmed(self.country)
         optimal = minimize(loss, [0.001, 0.001], args=(data, recovered), method='L-BFGS-B', bounds=[(0.00000001, 0.4), (0.00000001, 0.4)])
         print(optimal)
         beta, gamma = optimal.x
         new_index, extended_actual, extended_recovered, prediction = self.predict(beta, gamma, data, recovered, self.country)
-        df = pd.DataFrame({'Infected real': extended_actual, 'Recovered real': extended_recovered, 'Susceptible': prediction.y[0], 'Infected modeled': prediction.y[1], 'Recovered modeled': prediction.y[2]}, index=new_index)
+        df = pd.DataFrame({'Confirmed': extended_actual, 'Recovered': extended_recovered, 'S': prediction.y[0], 'I': prediction.y[1], 'R': prediction.y[2]}, index=new_index)
         fig, ax = plt.subplots(figsize=(15, 10))
         ax.set_title(self.country)
         df.plot(ax=ax)
         print(f"country={self.country}, beta={beta:.8f}, gamma={gamma:.8f}, r_0:{(beta/gamma):.8f}")
         fig.savefig(f"{self.country}.png")
-
 
 def loss(point, data, recovered):
     size = len(data)
@@ -154,8 +151,6 @@ def loss(point, data, recovered):
     alpha = 0.1
     return alpha * l1 + (1 - alpha) * l2
 
-
-
 def main():
 
     countries, startdate, predict_range = parse_arguments()
@@ -165,8 +160,9 @@ def main():
         try:
             learner.train()
         except BaseException:
-            print('WARNING: Problem processing above country. ' +
-                'Be sure it exists in the data exactly as you entry it.')
+            print('WARNING: Problem processing ' + str(country) +
+                '. Be sure it exists in the data exactly as you entry it.' +
+                ' Also check data format if you passed.')
            
 
 if __name__ == '__main__':
