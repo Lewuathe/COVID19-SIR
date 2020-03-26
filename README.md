@@ -14,15 +14,33 @@ $ pipenv shell
 $ python solver.py
 ```
 
-Four images will be generated.
+Option to run
+```
+$ /solver.py -h
+usage: solver.py [-h] [--countries COUNTRY_CSV] [--start-date START_DATE]
+                 [--prediction-days PREDICT_RANGE] [--S_0 S_0] [--I_0 I_0]
+                 [--R_0 R_0]
 
-- [Japan.png](/Japan.png)
-- [Republic of Korea.png](/Republic%20of%20Korea.png)
-- [Italy.png](/Italy.png)
-- [Iran (Islamic Republic of).png](/Iran%20(Islamic%20Republic%20of).png)
+optional arguments:
+  -h, --help            show this help message and exit
+  --countries COUNTRY_CSV
+                        Countries on CSV format. It must exact match the data
+                        names or you will get out of bonds error.
+  --start-date START_DATE
+                        Start date on MM/DD/YY format ... I know ...It
+                        defaults to first data available 1/22/20
+  --prediction-days PREDICT_RANGE
+                        Days to predict with the model. Defaults to 150
+  --S_0 S_0             NOT USED YET. Susceptible. Defaults to 100000
+  --I_0 I_0             NOT USED solver.pyYET. Infected. Defaults to 2
+  --R_0 R_0             NOT USED YET. Recovered. Defaults to 0
+```
+
 
 ## Data Source
 
 The data used by this simulation is available in HDX site.
 
 - [HDX](https://data.humdata.org/dataset/novel-coronavirus-2019-ncov-cases)
+
+
