@@ -163,8 +163,9 @@ class Learner(object):
 
     def train(self):
         recovered = self.load_recovered(self.country)
-        data = (self.load_confirmed(self.country) - recovered)
         death = self.load_dead(self.country)
+        data = (self.load_confirmed(self.country) - recovered - death)
+        
         optimal = minimize(loss, [0.001, 0.001], args=(data, recovered, self.s_0, self.i_0, self.r_0), method='L-BFGS-B', bounds=[(0.00000001, 0.4), (0.00000001, 0.4)])
         print(optimal)
         beta, gamma = optimal.x
