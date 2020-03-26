@@ -126,8 +126,8 @@ class Learner(object):
         return new_index, extended_actual, extended_recovered, solve_ivp(SIR, [0, size], [S_0,I_0,R_0], t_eval=np.arange(0, size, 1))
 
     def train(self):
-        data = self.load_confirmed(self.country)
         recovered = self.load_recovered(self.country)
+        data = (self.load_confirmed(self.country) - recovered)
         optimal = minimize(loss, [0.001, 0.001], args=(data, recovered), method='L-BFGS-B', bounds=[(0.00000001, 0.4), (0.00000001, 0.4)])
         print(optimal)
         beta, gamma = optimal.x
