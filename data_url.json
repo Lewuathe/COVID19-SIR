@@ -1,0 +1,6 @@
+{
+    "time_series_19-covid-Confirmed.csv" : "https://raw.githubusercontent.com/bumbeishvili/covid19-daily-data/master/time_series_19-covid-Confirmed.csv",
+    "time_series_19-covid-Recovered.csv" : "https://raw.githubusercontent.com/bumbeishvili/covid19-daily-data/master/time_series_19-covid-Recovered.csv",
+    "time_series_19-covid-Deaths.csv" : "https://raw.githubusercontent.com/bumbeishvili/covid19-daily-data/master/time_series_19-covid-Deaths.csv"
+}
+
