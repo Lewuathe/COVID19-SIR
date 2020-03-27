@@ -41,6 +41,5 @@ optional arguments:
 
 The data used by this simulation is available in:
 
-- [HDX](https://data.humdata.org/dataset/novel-coronavirus-2019-ncov-cases)
-- [bumbeishvili/covid19-daily-data](https://github.com/bumbeishvili/covid19-daily-data)
+- [CSSEGISandData/COVID-19](https://github.com/CSSEGISandData/COVID-19)
 
