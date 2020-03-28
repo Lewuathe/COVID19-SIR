@@ -95,6 +95,17 @@ def parse_arguments():
     return (country_list, args.download_data, args.start_date, args.predict_range, args.s_0, args.i_0, args.r_0)
 
 
+def remove_province(input_file, output_file):
+    input = open(input_file, "r")
+    output = open(output_file, "w")
+    output.write(input.readline())
+    for line in input:
+        if line.lstrip().startswith(","):
+            output.write(line)
+    input.close()
+    output.close()
+
+
 def download_data(url_dictionary):
     #Lets download the files
     for url_title in url_dictionary.keys():
@@ -123,19 +134,19 @@ class Learner(object):
 
 
     def load_confirmed(self, country):
-      df = pd.read_csv('data/time_series_19-covid-Confirmed.csv')
-      country_df = df[df['Country/Region'] == country]
-      return country_df.iloc[0].loc[self.start_date:]
+        df = pd.read_csv('data/time_series_19-covid-Confirmed-country.csv')
+        country_df = df[df['Country/Region'] == country]
+        return country_df.iloc[0].loc[self.start_date:]
 
 
     def load_recovered(self, country):
-      df = pd.read_csv('data/time_series_19-covid-Recovered.csv')
-      country_df = df[df['Country/Region'] == country]
-      return country_df.iloc[0].loc[self.start_date:]
+        df = pd.read_csv('data/time_series_19-covid-Recovered-country.csv')
+        country_df = df[df['Country/Region'] == country]
+        return country_df.iloc[0].loc[self.start_date:]
 
 
     def load_dead(self, country):
-        df = pd.read_csv('data/time_series_19-covid-Deaths.csv')
+        df = pd.read_csv('data/time_series_19-covid-Deaths-country.csv')
         country_df = df[df['Country/Region'] == country]
         return country_df.iloc[0].loc[self.start_date:]
     
@@ -160,6 +171,7 @@ class Learner(object):
         extended_recovered = np.concatenate((recovered.values, [None] * (size - len(recovered.values))))
         extended_death = np.concatenate((death.values, [None] * (size - len(death.values))))
         return new_index, extended_actual, extended_recovered, extended_death, solve_ivp(SIR, [0, size], [s_0,i_0,r_0], t_eval=np.arange(0, size, 1))
+
 
     def train(self):
         recovered = self.load_recovered(self.country)
@@ -201,14 +213,18 @@ def main():
         data_d = load_json("./data_url.json")
         download_data(data_d)
 
+    remove_province('data/time_series_19-covid-Confirmed.csv', 'data/time_series_19-covid-Confirmed-country.csv')
+    remove_province('data/time_series_19-covid-Recovered.csv', 'data/time_series_19-covid-Recovered-country.csv')
+    remove_province('data/time_series_19-covid-Deaths.csv', 'data/time_series_19-covid-Deaths-country.csv')
+
     for country in countries:
         learner = Learner(country, loss, startdate, predict_range, s_0, i_0, r_0)
-        try:
-            learner.train()
-        except BaseException:
-            print('WARNING: Problem processing ' + str(country) +
-                '. Be sure it exists in the data exactly as you entry it.' +
-                ' Also check date format if you passed it as parameter.')
+        #try:
+        learner.train()
+        #except BaseException:
+        #    print('WARNING: Problem processing ' + str(country) +
+        #        '. Be sure it exists in the data exactly as you entry it.' +
+        #        ' Also check date format if you passed it as parameter.')
            
 
 if __name__ == '__main__':
