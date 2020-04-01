@@ -1,11 +1,8 @@
 #!/usr/bin/python
 import numpy as np
 import pandas as pd
-from csv import reader
-from csv import writer
 from scipy.integrate import solve_ivp
 from scipy.optimize import minimize
-from scipy.integrate import odeint
 import matplotlib.pyplot as plt
 from datetime import timedelta, datetime
 import argparse
@@ -26,7 +23,7 @@ def parse_arguments():
         'It must exact match the data names or you will get out of bonds error.',
         metavar='COUNTRY_CSV',
         type=str,
-        default="Brazil")
+        default="")
     
     parser.add_argument(
         '--download-data',
@@ -98,30 +95,15 @@ def parse_arguments():
     return (country_list, args.download_data, args.start_date, args.predict_range, args.s_0, args.i_0, args.r_0)
 
 
-def sumCases_province(input_file, output_file):
-    with open(input_file, "r") as read_obj, open(output_file,'w',newline='') as write_obj:
-        csv_reader = reader(read_obj)
-        csv_writer = writer(write_obj)
-               
-        lines=[]
-        for line in csv_reader:
-            lines.append(line)    
-
-        i=0
-        ix=0
-        for i in range(0,len(lines[:])-1):
-            if lines[i][1]==lines[i+1][1]:
-                if ix==0:
-                    ix=i
-                lines[ix][4:] = np.asfarray(lines[ix][4:],float)+np.asfarray(lines[i+1][4:] ,float)
-            else:
-                if not ix==0:
-                    lines[ix][0]=""
-                    csv_writer.writerow(lines[ix])
-                    ix=0
-                else:
-                    csv_writer.writerow(lines[i])
-            i+=1    
+def remove_province(input_file, output_file):
+    input = open(input_file, "r")
+    output = open(output_file, "w")
+    output.write(input.readline())
+    for line in input:
+        if line.lstrip().startswith(","):
+            output.write(line)
+    input.close()
+    output.close()
 
 
 def download_data(url_dictionary):
@@ -201,33 +183,26 @@ class Learner(object):
         beta, gamma = optimal.x
         new_index, extended_actual, extended_recovered, extended_death, prediction = self.predict(beta, gamma, data, recovered, death, self.country, self.s_0, self.i_0, self.r_0)
         df = pd.DataFrame({'Infected data': extended_actual, 'Recovered data': extended_recovered, 'Death data': extended_death, 'Susceptible': prediction.y[0], 'Infected': prediction.y[1], 'Recovered': prediction.y[2]}, index=new_index)
-        plt.rcParams['figure.figsize'] = [7, 7]
-        plt.rc('font', size=14)
         fig, ax = plt.subplots(figsize=(15, 10))
-        ax.set_title("SIR Model for "+self.country)
-        plt.annotate('Source: https://www.lewuathe.com/covid-19-dynamics-with-sir-model.html', fontsize=10, 
-        xy=(1.045,0.1), xycoords='axes fraction',
-        xytext=(0, 0), textcoords='offset points',
-        ha='left',rotation=90)
+        ax.set_title(self.country)
         df.plot(ax=ax)
         print(f"country={self.country}, beta={beta:.8f}, gamma={gamma:.8f}, r_0:{(beta/gamma):.8f}")
         fig.savefig(f"{self.country}.png")
 
+
 def loss(point, data, recovered, s_0, i_0, r_0):
     size = len(data)
     beta, gamma = point
-    def SIR(y,t):
-        return [-beta*y[0]*y[1], beta*y[0]*y[1]-gamma*y[1], gamma*y[1]]
-    y0=[s_0,i_0,r_0]
-    tspan=np.arange(0, size, 1)
-    res=odeint(SIR,y0,tspan)
-    l1 = np.sqrt(np.mean((res[:,1]- data)**2))
-    l2 = np.sqrt(np.mean((res[:,2]- recovered)**2))
-    #weight for cases
-    u = 0.17
-    #weight for recovered
-    v = 1 - u
-    return u*l1 + v*l2
+    def SIR(t, y):
+        S = y[0]
+        I = y[1]
+        R = y[2]
+        return [-beta*S*I, beta*S*I-gamma*I, gamma*I]
+    solution = solve_ivp(SIR, [0, size], [s_0,i_0,r_0], t_eval=np.arange(0, size, 1), vectorized=True)
+    l1 = np.sqrt(np.mean((solution.y[1] - data)**2))
+    l2 = np.sqrt(np.mean((solution.y[2] - recovered)**2))
+    alpha = 0.1
+    return alpha * l1 + (1 - alpha) * l2
 
 
 def main():
@@ -238,9 +213,9 @@ def main():
         data_d = load_json("./data_url.json")
         download_data(data_d)
 
-    sumCases_province('data/time_series_19-covid-Confirmed.csv', 'data/time_series_19-covid-Confirmed-country.csv')
-    sumCases_province('data/time_series_19-covid-Recovered.csv', 'data/time_series_19-covid-Recovered-country.csv')
-    sumCases_province('data/time_series_19-covid-Deaths.csv', 'data/time_series_19-covid-Deaths-country.csv')
+    remove_province('data/time_series_19-covid-Confirmed.csv', 'data/time_series_19-covid-Confirmed-country.csv')
+    remove_province('data/time_series_19-covid-Recovered.csv', 'data/time_series_19-covid-Recovered-country.csv')
+    remove_province('data/time_series_19-covid-Deaths.csv', 'data/time_series_19-covid-Deaths-country.csv')
 
     for country in countries:
         learner = Learner(country, loss, startdate, predict_range, s_0, i_0, r_0)
