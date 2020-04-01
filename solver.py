@@ -26,7 +26,7 @@ def parse_arguments():
         'It must exact match the data names or you will get out of bonds error.',
         metavar='COUNTRY_CSV',
         type=str,
-        default="Brazil")
+        default="")
     
     parser.add_argument(
         '--download-data',
