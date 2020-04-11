@@ -1,6 +1,8 @@
 #!/usr/bin/python
 import numpy as np
 import pandas as pd
+from csv import reader
+from csv import writer
 from scipy.integrate import solve_ivp
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
@@ -95,15 +97,30 @@ def parse_arguments():
     return (country_list, args.download_data, args.start_date, args.predict_range, args.s_0, args.i_0, args.r_0)
 
 
-def remove_province(input_file, output_file):
-    input = open(input_file, "r")
-    output = open(output_file, "w")
-    output.write(input.readline())
-    for line in input:
-        if line.lstrip().startswith(","):
-            output.write(line)
-    input.close()
-    output.close()
+def sumCases_province(input_file, output_file):
+    with open(input_file, "r") as read_obj, open(output_file,'w',newline='') as write_obj:
+        csv_reader = reader(read_obj)
+        csv_writer = writer(write_obj)
+               
+        lines=[]
+        for line in csv_reader:
+            lines.append(line)    
+
+        i=0
+        ix=0
+        for i in range(0,len(lines[:])-1):
+            if lines[i][1]==lines[i+1][1]:
+                if ix==0:
+                    ix=i
+                lines[ix][4:] = np.asfarray(lines[ix][4:],float)+np.asfarray(lines[i+1][4:] ,float)
+            else:
+                if not ix==0:
+                    lines[ix][0]=""
+                    csv_writer.writerow(lines[ix])
+                    ix=0
+                else:
+                    csv_writer.writerow(lines[i])
+            i+=1    
 
 
 def download_data(url_dictionary):
@@ -213,9 +230,9 @@ def main():
         data_d = load_json("./data_url.json")
         download_data(data_d)
 
-    remove_province('data/time_series_19-covid-Confirmed.csv', 'data/time_series_19-covid-Confirmed-country.csv')
-    remove_province('data/time_series_19-covid-Recovered.csv', 'data/time_series_19-covid-Recovered-country.csv')
-    remove_province('data/time_series_19-covid-Deaths.csv', 'data/time_series_19-covid-Deaths-country.csv')
+    sumCases_province('data/time_series_19-covid-Confirmed.csv', 'data/time_series_19-covid-Confirmed-country.csv')
+    sumCases_province('data/time_series_19-covid-Recovered.csv', 'data/time_series_19-covid-Recovered-country.csv')
+    sumCases_province('data/time_series_19-covid-Deaths.csv', 'data/time_series_19-covid-Deaths-country.csv')
 
     for country in countries:
         learner = Learner(country, loss, startdate, predict_range, s_0, i_0, r_0)
