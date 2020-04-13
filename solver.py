@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import numpy as np
 import pandas as pd
-from csv import reader
+import os
 from csv import writer
 from scipy.integrate import solve_ivp
 from scipy.optimize import minimize
@@ -12,11 +12,18 @@ import sys
 import json
 import ssl
 import urllib.request
+from csv import reader
+from csv import writer
 
+
+def savePlot(strFile):
+    if os.path.isfile(strFile):
+        os.remove(strFile)   # Opt.: os.system("del "+strFile)
+    plt.savefig(strFile,dpi=600)
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    
+
     parser.add_argument(
         '--countries',
         action='store',
@@ -25,14 +32,14 @@ def parse_arguments():
         'It must exact match the data names or you will get out of bonds error.',
         metavar='COUNTRY_CSV',
         type=str,
-        default="")
+        default="Brazil")
     
     parser.add_argument(
         '--download-data',
         action='store_true',
         dest='download_data',
         help='Download fresh data and then run',
-        default=False
+        default=True
     )
 
     parser.add_argument(
@@ -62,7 +69,7 @@ def parse_arguments():
         help='S_0. Defaults to 100000',
         metavar='S_0',
         type=int,
-        default=100000)
+        default=75e3)
 
     parser.add_argument(
         '--I_0',
@@ -183,12 +190,14 @@ class Learner(object):
             S = y[0]
             I = y[1]
             R = y[2]
-            return [-beta*S*I, beta*S*I-gamma*I, gamma*I]
+            y0=-beta*S*I
+            y1=beta*S*I-gamma*I
+            y2=max(0,1.-(y0+y1))
+            return [y0,y1,y2]
         extended_actual = np.concatenate((data.values, [None] * (size - len(data.values))))
         extended_recovered = np.concatenate((recovered.values, [None] * (size - len(recovered.values))))
         extended_death = np.concatenate((death.values, [None] * (size - len(death.values))))
         return new_index, extended_actual, extended_recovered, extended_death, solve_ivp(SIR, [0, size], [s_0,i_0,r_0], t_eval=np.arange(0, size, 1))
-
 
     def train(self):
         recovered = self.load_recovered(self.country)
@@ -199,13 +208,28 @@ class Learner(object):
         print(optimal)
         beta, gamma = optimal.x
         new_index, extended_actual, extended_recovered, extended_death, prediction = self.predict(beta, gamma, data, recovered, death, self.country, self.s_0, self.i_0, self.r_0)
-        df = pd.DataFrame({'Infected data': extended_actual, 'Recovered data': extended_recovered, 'Death data': extended_death, 'Susceptible': prediction.y[0], 'Infected': prediction.y[1], 'Recovered': prediction.y[2]}, index=new_index)
-        fig, ax = plt.subplots(figsize=(15, 10))
-        ax.set_title(self.country)
-        df.plot(ax=ax)
-        print(f"country={self.country}, beta={beta:.8f}, gamma={gamma:.8f}, r_0:{(beta/gamma):.8f}")
-        fig.savefig(f"{self.country}.png")
+        df = pd.DataFrame({'Infected data': extended_actual, 
+            'Recovered data': extended_recovered, 'Death data': extended_death, 
+            'Susceptible': prediction.y[0], 'Infected': prediction.y[1], 
+            'Recovered': prediction.y[2]}, index=new_index)
+        
 
+        plt.rc('font', size=14)
+        fig, ax = plt.subplots(figsize=(15, 10))
+        ax.set_title("SIR Model for "+self.country)
+        df.plot(ax=ax)
+        print(f"country={self.country}, beta={beta:.8f},  gamma={gamma:.8f}, r_0:{(beta/gamma):.8f}")
+        
+        plt.annotate('Source: https://www.lewuathe.com/covid-19-dynamics-with-sir-model.html', fontsize=10, 
+        xy=(1.045,0.1), xycoords='axes fraction',
+        xytext=(0, 0), textcoords='offset points',
+        ha='left',rotation=90)
+
+        country=self.country
+        savePlot("modelSIR_"+country+".png")
+
+        plt.show()
+        plt.close()
 
 def loss(point, data, recovered, s_0, i_0, r_0):
     size = len(data)
@@ -214,13 +238,16 @@ def loss(point, data, recovered, s_0, i_0, r_0):
         S = y[0]
         I = y[1]
         R = y[2]
-        return [-beta*S*I, beta*S*I-gamma*I, gamma*I]
+        y0=-beta*S*I
+        y1=beta*S*I-gamma*I
+        y2=max(0,1.-(y0+y1))
+        return [y0,y1,y2]
     solution = solve_ivp(SIR, [0, size], [s_0,i_0,r_0], t_eval=np.arange(0, size, 1), vectorized=True)
     l1 = np.sqrt(np.mean((solution.y[1] - data)**2))
     l2 = np.sqrt(np.mean((solution.y[2] - recovered)**2))
+    
     alpha = 0.1
     return alpha * l1 + (1 - alpha) * l2
-
 
 def main():
 
