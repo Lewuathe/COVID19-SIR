@@ -10,8 +10,8 @@ SIR model estimation on COVID-19 cases dataset. There is a blog post describing 
 All dependencies are resolved by [Pipenv](https://pipenv.kennethreitz.org/en/latest/)
 
 ```
-$ pipenv shell
-$ python solver.py
+$ poetry install
+$ poetry run python solver.py
 ```
 
 Option to run
